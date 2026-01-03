@@ -24,6 +24,19 @@ void handle_refresh() {
         if (state.status == 3) printf("Partie abandoné\n");
     }
 }
-int main() {
+int main(int argc, char *argv[]) {
+    if (argc < 2) return 1;
+    pipe_in =  atoi(argv[1]);
 
+    struct sigaction sa;
+    sa.sa_handler = handle_refresh;
+    sigemptyset(&sa.sa_mask); // masque de signaux vide
+    sa.sa_flags = 0; // 0 = default
+    sigaction(SIGUSR1, &sa, NULL); //
+
+    while (1) {
+        pause(); // att le signal de refresh
+        if (state.status != 0) break;
+    }
+    return 0;
 }
