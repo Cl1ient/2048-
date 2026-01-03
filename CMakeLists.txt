@@ -7,4 +7,5 @@ include_directories(.)
 
 add_executable(2048
         main_process.c
-        common.h)
+        common.h
+        display_process.c)
