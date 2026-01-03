@@ -11,9 +11,11 @@
 #include <pthread.h>
 #include <string.h>
 #include <time.h>
+#include <stdbool.h>
 
 
 #define GRID_SIZE 4
+#define NAMED_PIPE "pipe_2048_input"
 
 typedef struct {
     int grid[GRID_SIZE][GRID_SIZE];
@@ -22,3 +24,5 @@ typedef struct {
 } GameState;
 
 typedef enum { UP, DOWN, LEFT, RIGHT, QUIT } Command;
+
+#endif
