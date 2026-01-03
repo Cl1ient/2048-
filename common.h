@@ -1,6 +1,18 @@
 #ifndef INC_2048_COMMON_H
 #define INC_2048_COMMON_H
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <pthread.h>
+#include <string.h>
+#include <time.h>
+
+
 #define GRID_SIZE 4
 
 typedef struct {
