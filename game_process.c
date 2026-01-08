@@ -6,7 +6,7 @@ int pipe_anon[2];
 pid_t pid_display;
 
 
-void thread_weup(int sig) {}
+void thread_wakeup(int sig) {}
 
 // Apparition d'une tuile aléatoire (2 ou 4) sur une case vide 
 void add_tile() {
@@ -33,36 +33,6 @@ void add_tile() {
         else
             game.grid[line][column] = 2;
     }
-}
-
-// Gère la logique de déplacement ligne par ligne OU colonne par colonne
-void move_logic(Command cmd) {
-    int moved = 0;
-    int temp_line[4];
-
-    for (int i = 0; i < 4; i++) {
-        // "copie" du jeu actuel dans l'ordre souhaité
-        for (int j = 0; j < 4; j++) {
-            if (cmd == LEFT)  temp_line[j] = game.grid[i][j];
-            else if (cmd == RIGHT) temp_line[j] = game.grid[i][3-j]; // début par la fin de ligne
-            else if (cmd == UP)    temp_line[j] = game.grid[j][i];
-            else if (cmd == DOWN)  temp_line[j] = game.grid[3-j][i]; // début par le fin de colonne
-        }
-        
-        // déplacement et fusion de toute la ligne / colonne
-        if (process_line(temp_line))
-            moved = 1; 
-
-        // maj du jeu après déplacement et fusion
-        for (int j = 0; j < 4; j++) {
-            if (cmd == LEFT)  game.grid[i][j] = temp_line[j];
-            else if (cmd == RIGHT) game.grid[i][3-j] = temp_line[j];
-            else if (cmd == UP)    game.grid[j][i] = temp_line[j];
-            else if (cmd == DOWN)  game.grid[3-j][i] = temp_line[j];
-        }
-    }
-
-    if (moved) add_tile();
 }
 
 // Déplace et fusionne n'importe quelle ligne/colonne comme un mouvement vers la gauche
@@ -105,6 +75,37 @@ int process_line(int line[4]) {
     return changed;
 }
 
+
+// Gère la logique de déplacement ligne par ligne OU colonne par colonne
+void move_logic(Command cmd) {
+    int moved = 0;
+    int temp_line[4];
+
+    for (int i = 0; i < 4; i++) {
+        // "copie" du jeu actuel dans l'ordre souhaité
+        for (int j = 0; j < 4; j++) {
+            if (cmd == LEFT)  temp_line[j] = game.grid[i][j];
+            else if (cmd == RIGHT) temp_line[j] = game.grid[i][3-j]; // début par la fin de ligne
+            else if (cmd == UP)    temp_line[j] = game.grid[j][i];
+            else if (cmd == DOWN)  temp_line[j] = game.grid[3-j][i]; // début par le fin de colonne
+        }
+        
+        // déplacement et fusion de toute la ligne / colonne
+        if (process_line(temp_line))
+            moved = 1; 
+
+        // maj du jeu après déplacement et fusion
+        for (int j = 0; j < 4; j++) {
+            if (cmd == LEFT)  game.grid[i][j] = temp_line[j];
+            else if (cmd == RIGHT) game.grid[i][3-j] = temp_line[j];
+            else if (cmd == UP)    game.grid[j][i] = temp_line[j];
+            else if (cmd == DOWN)  game.grid[3-j][i] = temp_line[j];
+        }
+    }
+
+    if (moved) add_tile();
+}
+
 void* thread_move_score(void* arg) {}
 
 void* thread_goal(void* arg) {}
@@ -115,10 +116,10 @@ int main() {
     add_tile();
 
     pipe(pipe_anon);
-    pid_display = for();
+    pid_display = fork();
 
     t_main = pthread_self();
-    signal(SIGUSR1, thread_waaeup);
+    signal(SIGUSR1, thread_wakeup);
 
     pthread_create(&t_move, NULL, thread_move_score, NULL);
     pthread_create(&t_goal, NULL, thread_goal, NULL);
