@@ -4,7 +4,8 @@ int pipe_in;
 GameState state;
 
 // Synchro par signal entre les processus
-void handle_refresh() {
+void handle_refresh(int sig) {
+    (void)sig;
     if (read(pipe_in, &state, sizeof(GameState)) > 0) {
         system("clear"); // clear l'affichage de la console
         printf("=== JEU 2048 ===   Score: %d\n\n", state.score);

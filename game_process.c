@@ -7,7 +7,7 @@ int pipe_anon[2];
 pid_t pid_display;
 
 
-void thread_wakeup(int sig) {}
+void thread_wakeup(int sig) { (void)sig; }
 
 // Apparition d'une tuile aléatoire (2 ou 4) sur une case vide 
 void add_tile() {
@@ -108,6 +108,7 @@ void move_logic(Command cmd) {
 }
 
 void* thread_move_score(void* arg) {
+    (void)arg;
     while(1) {
         pause(); // att le signal du main thread
         move_logic(last_cmd);
@@ -117,16 +118,28 @@ void* thread_move_score(void* arg) {
 }
 
 void* thread_goal(void* arg) {
+    (void)arg;
     while(1) {
         pause(); // Att le signal de move & score 
 
-        // Check victoire = 2048
+        // verif victoire (tuile 2048)
         for(int i = 0; i < 4; i++) {
             for(int j = 0; j < 4; j++) {
                 if(game.grid[i][j] == 2048) 
                     game.status = 1;
             }
         }
+
+        // verif défaite (aucun coup possible)
+        int can_move = 0;
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                if (game.grid[i][j] == 0) can_move = 1;
+                if (i < 3 && game.grid[i][j] == game.grid[i+1][j]) can_move = 1;
+                if (j < 3 && game.grid[i][j] == game.grid[i][j+1]) can_move = 1;
+            }
+        }
+        if (!can_move) game.status = 2;
         
         write(pipe_anon[1], &game, sizeof(GameState));
         kill(pid_display, SIGUSR1); // Synchro avec le processus d'affichage
@@ -137,6 +150,7 @@ void* thread_goal(void* arg) {
 }
 
 int main() {
+    srand(time(NULL));
     memset(&game, 0, sizeof(GameState));
 
     add_tile();
@@ -144,11 +158,61 @@ int main() {
     pipe(pipe_anon);
     pid_display = fork();
 
+    if (pid_display == 0) {
+        close(pipe_anon[1]);
+        char fd_str[10];
+        sprintf(fd_str, "%d", pipe_anon[0]);
+        execl("./display", "display", fd_str, NULL);
+        exit(0); 
+    }
+
+    close(pipe_anon[0]);
+
+    sleep(1); // attente pour init display
+
     t_main = pthread_self();
-    signal(SIGUSR1, thread_wakeup);
+    struct sigaction sa;
+    sa.sa_handler = thread_wakeup;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGUSR1, &sa, NULL);
 
     pthread_create(&t_move, NULL, thread_move_score, NULL);
     pthread_create(&t_goal, NULL, thread_goal, NULL);
+
+    write(pipe_anon[1], &game, sizeof(GameState));
+    kill(pid_display, SIGUSR1);
+
+    int fd_in = open(NAMED_PIPE, O_RDWR); 
+    while (1) {
+        ssize_t n = read(fd_in, &last_cmd, sizeof(Command));
+
+        if (n < 0) {
+            if (errno == EINTR) 
+                continue; 
+            perror("Erreur read");
+            break;
+        }
+
+        if (n == 0) continue; // si pipe vide on attend
+
+        if (last_cmd == QUIT) {
+            game.status = 3;
+            write(pipe_anon[1], &game, sizeof(GameState));
+            kill(pid_display, SIGUSR1);
+            break;
+        }
+        
+        pthread_kill(t_move, SIGUSR1);
+        pause(); 
+
+        if (game.status != 0) 
+            break;
+    }
+
+    close(fd_in);
+    close(pipe_anon[1]);
+    kill(pid_display, SIGTERM);
 
     return 0;
 }
