@@ -1,6 +1,7 @@
 #include "common.h"
 
 GameState game;
+Command last_cmd;
 pthread_t t_main, t_move, t_goal;
 int pipe_anon[2];
 pid_t pid_display;
@@ -106,9 +107,34 @@ void move_logic(Command cmd) {
     if (moved) add_tile();
 }
 
-void* thread_move_score(void* arg) {}
+void* thread_move_score(void* arg) {
+    while(1) {
+        pause(); // att le signal du main thread
+        move_logic(last_cmd);
+        pthread_kill(t_goal, SIGUSR1); // donne les infos au thread goal 
+    }
+    return NULL;
+}
 
-void* thread_goal(void* arg) {}
+void* thread_goal(void* arg) {
+    while(1) {
+        pause(); // Att le signal de move & score 
+
+        // Check victoire = 2048
+        for(int i = 0; i < 4; i++) {
+            for(int j = 0; j < 4; j++) {
+                if(game.grid[i][j] == 2048) 
+                    game.status = 1;
+            }
+        }
+        
+        write(pipe_anon[1], &game, sizeof(GameState));
+        kill(pid_display, SIGUSR1); // Synchro avec le processus d'affichage
+
+        pthread_kill(t_main, SIGUSR1);
+    }
+    return NULL; 
+}
 
 int main() {
     memset(&game, 0, sizeof(GameState));
