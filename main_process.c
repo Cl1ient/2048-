@@ -2,7 +2,12 @@
 
 int main() {
     mkfifo(NAMED_PIPE, 0666);
+
     int fd = open(NAMED_PIPE, O_WRONLY);
+    if (fd == -1) {
+        perror("main_process : open");
+        exit(1);
+    }
 
     char input;
 
