@@ -16,14 +16,15 @@
 
 
 #define GRID_SIZE 4
+// le pipe nommé
 #define NAMED_PIPE "pipe_2048_input"
 
 typedef struct {
-    int grid[GRID_SIZE][GRID_SIZE];
-    int score;
+    int grid[GRID_SIZE][GRID_SIZE]; // grille du jeu
+    int score; // score actuel
     int status; // 0, 1, 2 or 3
 } GameState;
 
-typedef enum { UP, DOWN, LEFT, RIGHT, QUIT } Command;
+typedef enum { UP, DOWN, LEFT, RIGHT, QUIT } Command; // enum au lieux d'utiliser 1,2,3,4
 
 #endif

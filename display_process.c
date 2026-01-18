@@ -1,11 +1,12 @@
 #include "common.h"
 
-int pipe_in;
-GameState state;
+int pipe_in; // descripteur de lecture du pipe anonyme
+GameState state; // mémoire locale de l'état du jeu
 
 // Synchro par signal entre les processus
+// Handler déclenché par le signal SIGUSR1
 void handle_refresh(int sig) {
-    (void)sig;
+    (void)sig; // on ignore le num du signal car c'est que c'est SIGUSR1
     if (read(pipe_in, &state, sizeof(GameState)) > 0) {
         system("clear"); // clear l'affichage de la console
         printf("=== JEU 2048 ===   Score: %d\n\n", state.score);
@@ -28,7 +29,7 @@ void handle_refresh(int sig) {
 int main(int argc, char *argv[]) {
     if (argc < 2) return 1;
     pipe_in =  atoi(argv[1]);
-
+    // config du gestionnaire de signal (SIGUSR1)
     struct sigaction sa;
     sa.sa_handler = handle_refresh;
     sigemptyset(&sa.sa_mask); // masque de signaux vide

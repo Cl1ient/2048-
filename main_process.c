@@ -1,14 +1,17 @@
 #include "common.h"
 
-// Fonction pour vider la mémoire tampon (le reste de la ligne)
+// vide le buffer d'entrée
 void vider_buffer() {
     int c;
     while ((c = getchar()) != '\n' && c != EOF) { }
 }
 
 int main() {
-    unlink(NAMED_PIPE);
+    unlink(NAMED_PIPE); // Pour pas qu'il reste en cas de ctrl+c
+    // ouvre le pipe nommé
     int fd = open(NAMED_PIPE, O_WRONLY);
+
+    // On affiche ce message pour dire au joueur d'ouvrir le jeu
     if (fd == -1) {
         printf("En attente du jeu (lance ./game dans l'autre terminal)...\n");
         while ((fd = open(NAMED_PIPE, O_WRONLY)) == -1) {
@@ -56,6 +59,6 @@ int main() {
         }
     }
 
-    close(fd);
+    close(fd); // on ferme le descripteur de fichier
     return 0;
 }

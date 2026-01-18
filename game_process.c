@@ -1,12 +1,12 @@
 #include "common.h"
 
-GameState game;
-Command last_cmd;
-pthread_t t_main, t_move, t_goal;
-int pipe_anon[2];
-pid_t pid_display;
+GameState game; // etat global du jeu
+Command last_cmd; // dernière commande reçue
+pthread_t t_main, t_move, t_goal; // id des threads
+int pipe_anon[2]; // pipe anonyme
+pid_t pid_display; // PID du processus d'affichage
 
-
+// handler vide pour réveiller le thread principal du pause()
 void thread_wakeup(int sig) { (void)sig; }
 
 // Apparition d'une tuile aléatoire (2 ou 4) sur une case vide 
@@ -149,27 +149,31 @@ void* thread_goal(void* arg) {
 }
 
 int main() {
+    // création du pipe nommé
     mkfifo(NAMED_PIPE, 0666);
     srand(time(NULL));
     memset(&game, 0, sizeof(GameState));
 
-    add_tile();
+    add_tile(); // première tuile
 
+    // création du pipe Anonyme
     pipe(pipe_anon);
+
+    // fork pour créer le processus d'affichage
     pid_display = fork();
 
     if (pid_display == 0) {
         close(pipe_anon[1]);
         char fd_str[10];
         sprintf(fd_str, "%d", pipe_anon[0]);
-        execl("./display", "display", fd_str, NULL);
+        execl("./display", "display", fd_str, NULL); // execute display
         exit(0); 
     }
 
-    close(pipe_anon[0]);
+    close(pipe_anon[0]); // ferme le côté lecture
+    sleep(1); // attendre pour laisser le fils s'init
 
-    sleep(1); // attente pour init display
-
+    // config des signaux pour les threads
     t_main = pthread_self();
     struct sigaction sa;
     sa.sa_handler = thread_wakeup;
@@ -177,12 +181,15 @@ int main() {
     sa.sa_flags = 0;
     sigaction(SIGUSR1, &sa, NULL);
 
+    // lancement des threads
     pthread_create(&t_move, NULL, thread_move_score, NULL);
     pthread_create(&t_goal, NULL, thread_goal, NULL);
 
+    // affichage initiale
     write(pipe_anon[1], &game, sizeof(GameState));
     kill(pid_display, SIGUSR1);
 
+    // ouverture du pipe nommé en lecture / écriture
     int fd_in = open(NAMED_PIPE, O_RDWR); 
     while (1) {
         ssize_t n = read(fd_in, &last_cmd, sizeof(Command));
@@ -196,6 +203,7 @@ int main() {
 
         if (n == 0) continue; // si pipe vide on attend
 
+        // gestion de l'abandon
         if (last_cmd == QUIT) {
             game.status = 3;
             write(pipe_anon[1], &game, sizeof(GameState));
@@ -205,12 +213,12 @@ int main() {
         }
         
         pthread_kill(t_move, SIGUSR1);
-        pause();
-        if (game.status != 0) {
+        pause(); // attend que goal ai fini son travail
+        if (game.status != 0) { // si la partie est gagné ou perdu on sort de la boucle
             break;
         };
     }
-
+    // nettoyage
     close(fd_in);
     close(pipe_anon[1]);
     sleep(1);
