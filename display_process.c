@@ -39,6 +39,7 @@ int main(int argc, char *argv[]) {
     while (1) {
         pause(); // att le signal de refresh
         if (state.status != 0) {
+            sleep(1); // attendre pour bien afficher le message de fin
             break;
         }
     }

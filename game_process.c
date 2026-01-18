@@ -140,7 +140,7 @@ void* thread_goal(void* arg) {
             }
         }
         if (!can_move) game.status = 2;
-        
+
         write(pipe_anon[1], &game, sizeof(GameState));
         kill(pid_display, SIGUSR1); // Synchro avec le processus d'affichage
 
