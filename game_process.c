@@ -199,19 +199,21 @@ int main() {
         if (last_cmd == QUIT) {
             game.status = 3;
             write(pipe_anon[1], &game, sizeof(GameState));
+            sleep(1); // laisser le temps au handle_refresh de display
             kill(pid_display, SIGUSR1);
             break;
         }
         
         pthread_kill(t_move, SIGUSR1);
-        pause(); 
-
-        if (game.status != 0) 
+        pause();
+        if (game.status != 0) {
             break;
+        };
     }
 
     close(fd_in);
     close(pipe_anon[1]);
+    sleep(1);
     kill(pid_display, SIGTERM);
 
     return 0;
