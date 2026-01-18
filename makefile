@@ -28,5 +28,6 @@ clean:
 # Aide pour le lancement
 help:
 	@echo "1. Tapez 'make' pour compiler"
-	@echo "2. Ouvrez un terminal et lancez : ./game"
-	@echo "3. Ouvrez un autre terminal et lancez : ./main"
+	@echo  "Attention l'ordre est important"
+	@echo "2. Ouvrez un terminal et lancez : ./main"
+	@echo "3. Ouvrez un autre terminal et lancez : ./game"
