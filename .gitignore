@@ -28,6 +28,12 @@
 *.so.*
 *.dylib
 
+# Project specific executables
+main
+game
+display
+pipe_2048_input
+
 # Executables
 *.exe
 *.out

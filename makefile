@@ -11,23 +11,16 @@ EXEC_DISPLAY = display
 # Cibles par défaut
 all: $(EXEC_MAIN) $(EXEC_ENGINE) $(EXEC_DISPLAY)
 
-$(EXEC_MAIN): main_process.c
+$(EXEC_MAIN): main_process.c common.h
 	$(CC) $(CFLAGS) -o $(EXEC_MAIN) main_process.c
 
-$(EXEC_ENGINE): game_process.c
+$(EXEC_ENGINE): game_process.c common.h
 	$(CC) $(CFLAGS) -o $(EXEC_ENGINE) game_process.c $(LDFLAGS) 
 
-$(EXEC_DISPLAY): display_process.c
+$(EXEC_DISPLAY): display_process.c common.h
 	$(CC) $(CFLAGS) -o $(EXEC_DISPLAY) display_process.c
 
 # Nettoyage des fichiers compilés
 clean:
 	rm -f $(EXEC_MAIN) $(EXEC_ENGINE) $(EXEC_DISPLAY)
-	rm -f /tmp/2048_pipe  # Supprime aussi le pipe nommé s'il existe
-
-# Aide pour le lancement
-help:
-	@echo "1. Tapez 'make' pour compiler"
-	@echo  "Attention l'ordre est important"
-	@echo "2. Ouvrez un terminal et lancez : ./main"
-	@echo "3. Ouvrez un autre terminal et lancez : ./game"
+	rm -f pipe_2048_input
