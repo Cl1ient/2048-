@@ -1,35 +1,61 @@
 #include "common.h"
 
-int main() {
-    mkfifo(NAMED_PIPE, 0666);
+// Fonction pour vider la mémoire tampon (le reste de la ligne)
+void vider_buffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF) { }
+}
 
+int main() {
+    unlink(NAMED_PIPE);
     int fd = open(NAMED_PIPE, O_WRONLY);
     if (fd == -1) {
-        perror("main_process : open");
-        exit(1);
+        printf("En attente du jeu (lance ./game dans l'autre terminal)...\n");
+        while ((fd = open(NAMED_PIPE, O_WRONLY)) == -1) {
+            sleep(1);
+        }
     }
 
     char input;
+    int compteur_coups = 0;
 
-    printf("Commandes : z (Haut), s (Bas), q (Gauche), d (Droit), a(Abandoné)\n");
-    while (true) {
-        scanf(" %c", &input); // ne pas lire le \n pour gagner en rapidité.
+    printf("Commandes : z (Haut), s (Bas), q (Gauche), d (Droit), a (Abandonner)\n");
+    printf("--------------------------------------------------------------------\n");
+
+    while (1) {
+
+        scanf(" %c", &input);
+        // seul le premoier caractères compte : zdzdzdzda = z
+        vider_buffer();
 
         Command cmd;
+        int valid = 1;
 
         if (input == 'z') cmd = UP;
         else if (input == 's') cmd = DOWN;
         else if (input == 'q') cmd = LEFT;
         else if (input == 'd') cmd = RIGHT;
         else if (input == 'a') cmd = QUIT;
-        else continue;
+        else valid = 0;
 
-        write(fd, &cmd, sizeof(Command));
-
-        if (cmd == QUIT) break; // Quitte la boucle infini
+        if (valid) {
+            if (write(fd, &cmd, sizeof(Command)) == -1) {
+                printf("Le jeu est fermé.\n");
+                break;
+            }
+            if (cmd == QUIT) break;
+            compteur_coups++;
+            if (compteur_coups >= 3) {
+                system("clear");
+                printf("Commandes : z (Haut), s (Bas), q (Gauche), d (Droit), a (Abandonner)\n");
+                printf("--------------------------------------------------------------------\n");
+                compteur_coups = 0;
+            }
+        } else {
+            printf("Touche '%c' ignorée. Utilise z, q, s, d ou a.\n", input);
+        }
     }
 
     close(fd);
-    unlink(NAMED_PIPE); // détruit le nom
     return 0;
 }

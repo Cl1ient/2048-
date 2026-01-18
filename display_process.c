@@ -19,11 +19,10 @@ void handle_refresh(int sig) {
             }
             printf("\n\n");
         }
-        printf("test\n");
         if (state.status == 1) printf("Tu as atteint 2048 \n");
         if (state.status == 2) printf("Plus de mouvements possibles \n");
         if (state.status == 3) printf("Partie abandoné\n");
-        fflush(stdout); // <--- AJOUTE CETTE LIGNE
+        fflush(stdout);
     }
 }
 int main(int argc, char *argv[]) {
