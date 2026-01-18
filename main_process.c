@@ -13,7 +13,7 @@ int main() {
 
     printf("Commandes : z (Haut), s (Bas), q (Gauche), d (Droit), a(Abandoné)\n");
     while (true) {
-        scanf(" %c", &input); // ne pas lire le \n pour gagner en rapidité
+        scanf(" %c", &input); // ne pas lire le \n pour gagner en rapidité.
 
         Command cmd;
 
