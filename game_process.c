@@ -2,7 +2,7 @@
 
 typedef struct {
     pid_t client_pid;
-    GameState* state;
+    GameState* state; // etat du jeu alloué dans le tas
     int pipe_display_fd;   // pipe anonyme dédié à ce joueur
     pid_t display_pid;     // PID du processus d'affichage dédié
 } ClientSession;
@@ -25,7 +25,7 @@ pthread_t t_main, t_move, t_goal; // id des threads
 void thread_wakeup(int sig) { (void)sig; }
 
 // Apparition d'une tuile aléatoire (2 ou 4) sur une case vide
-//  S41 : prend maitenant un pointeur vers la grille du joueur actuel
+// S41 : prend maitenant un pointeur vers la grille du joueur actuel
 void add_tile(GameState *current_game) {
     int empty[16][2];
     int count = 0;
@@ -139,7 +139,7 @@ ClientSession* get_or_create_client(pid_t pid) {
     memset(new_client->state, 0, sizeof(GameState));
     add_tile(new_client->state); // première tuile
 
-    // création du pipe anonyme
+    // création du pipe Anonyme
     int p[2]; pipe(p);
     new_client->pipe_display_fd = p[1];
 
@@ -153,6 +153,8 @@ ClientSession* get_or_create_client(pid_t pid) {
     }
     close(p[0]); // ferme le côté lecture
     new_client->display_pid = dpid;
+
+    usleep(100000); // attendre pour laisser le fils s'init
 
     // affichage initiale
     write(new_client->pipe_display_fd, new_client->state, sizeof(GameState));
@@ -235,6 +237,7 @@ int main(int argc, char *argv[]) {
     N_GAMES = atoi(argv[1]);
 
     // création du pipe nommé
+    unlink(NAMED_PIPE);
     mkfifo(NAMED_PIPE, 0666);
     srand(time(NULL));
 

@@ -7,7 +7,6 @@ void vider_buffer() {
 }
 
 int main() {
-    //unlink(NAMED_PIPE); // Pour pas qu'il reste en cas de ctrl+c
     // ouvre le pipe nommé
     int fd = open(NAMED_PIPE, O_WRONLY);
 
@@ -44,7 +43,7 @@ int main() {
 
         if (valid) {
             // crée le paquet qui contient le pid et la command
-            PlayerInput paquet = {pid,cmd};
+            PlayerInput paquet = {pid, cmd};
             if (write(fd, &paquet, sizeof(PlayerInput)) == -1) {
                 printf("Le serveur de jeu est fermé.\n");
                 break;
