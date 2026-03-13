@@ -21,6 +21,7 @@ int main() {
 
     char input;
     int compteur_coups = 0;
+    pid_t pid = getpid(); // S41 on récupère le pid
 
     printf("Commandes : z (Haut), s (Bas), q (Gauche), d (Droit), a (Abandonner)\n");
     printf("--------------------------------------------------------------------\n");
@@ -42,8 +43,9 @@ int main() {
         else valid = 0;
 
         if (valid) {
-            if (write(fd, &cmd, sizeof(Command)) == -1) {
-                printf("Le jeu est fermé.\n");
+            PlayerInput paquet = {pid,cmd};
+            if (write(fd, &paquet, sizeof(Command)) == -1) {
+                printf("Le serveur de jeu est fermé.\n");
                 break;
             }
             if (cmd == QUIT) break;
