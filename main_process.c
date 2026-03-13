@@ -43,6 +43,7 @@ int main() {
         else valid = 0;
 
         if (valid) {
+            // crée le paquet qui contient le pid et la command
             PlayerInput paquet = {pid,cmd};
             if (write(fd, &paquet, sizeof(Command)) == -1) {
                 printf("Le serveur de jeu est fermé.\n");
