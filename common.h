@@ -36,7 +36,7 @@ typedef struct {
 } PlayerInput;
 
 typedef struct {
-    GameState state // la grille à calculer
+    GameState state; // la grille à calculer
     pid_t client_pid; // à qui appartient la grille
     Command cmd; // la command à appliquer
     int state_flag; // 0 : Libre, 1 : a bouger, 2 : a verifier
