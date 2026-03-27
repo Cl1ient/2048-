@@ -180,6 +180,36 @@ ClientSession* get_or_create_client(pid_t pid) {
 }
 
 
+// Supprime un joueur du tableau clients et nettoie ses ressources
+void remove_client(pid_t pid) {
+    pthread_mutex_lock(&mutex_clients);
+    for(int i = 0; i < num_clients; i++) {
+        if(clients[i].client_pid == pid) {
+            printf("[Serveur] Joueur %d déconnecté (PID: %d)\n", i + 1, pid);
+            fflush(stdout);
+
+            // Envoie l'état "quit" au display avant de le fermer
+            clients[i].state->status = 3;
+            write(clients[i].pipe_display_fd, clients[i].state, sizeof(GameState));
+            kill(clients[i].display_pid, SIGUSR1);
+            usleep(50000); // laisse le display afficher le message
+
+            kill(clients[i].display_pid, SIGTERM);
+            close(clients[i].pipe_display_fd);
+            free(clients[i].state);
+
+            // Décale les éléments suivants pour combler le trou
+            for(int j = i; j < num_clients - 1; j++) {
+                clients[j] = clients[j + 1];
+            }
+            num_clients--;
+            clients = realloc(clients, num_clients * sizeof(ClientSession));
+            break;
+        }
+    }
+    pthread_mutex_unlock(&mutex_clients);
+}
+
 void* thread_move_score(void* arg) {
     (void)arg;
     while(server_running) {
@@ -302,10 +332,10 @@ int main(int argc, char *argv[]) {
 
         if (n == 0) continue; // si pipe vide on attend
 
-        // gestion de l'abandon
+        // gestion de l'abandon : déconnecte uniquement ce joueur
         if (input.cmd == QUIT) {
-            server_running = 0;
-            break;
+            remove_client(input.client_pid);
+            continue;
         }
 
         // Récupère ou crée le joueur
