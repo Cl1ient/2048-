@@ -1,15 +1,28 @@
 #include "common.h"
 
 int pipe_in; // descripteur de lecture du pipe anonyme
+int player_num; // numéro du joueur
+int first_display = 1; // flag pour le premier affichage
 GameState state; // mémoire locale de l'état du jeu
+volatile sig_atomic_t refresh_flag = 0; // flag async-signal-safe
 
 // Synchro par signal entre les processus
 // Handler déclenché par le signal SIGUSR1
 void handle_refresh(int sig) {
     (void)sig; // on ignore le num du signal car c'est que c'est SIGUSR1
+    refresh_flag = 1; // on lève juste le drapeau (async-signal-safe)
+}
+
+// Affiche la grille (appelé depuis le main, pas depuis le handler)
+void display_game() {
     if (read(pipe_in, &state, sizeof(GameState)) > 0) {
         system("clear"); // clear l'affichage de la console
-        printf("=== JEU 2048 ===   Score: %d\n\n", state.score);
+        if (first_display) {
+            printf("Connecté au serveur en tant que Joueur %d\n", player_num);
+            printf("--------------------------------------------------------------------\n");
+            first_display = 0;
+        }
+        printf("=== JEU 2048 - Joueur %d ===   Score: %d\n\n", player_num, state.score);
         for (int i = 0; i < GRID_SIZE; i++) {
             for (int j= 0; j < GRID_SIZE; j++) {
                 if (state.grid[i][j] == 0) {
@@ -26,9 +39,11 @@ void handle_refresh(int sig) {
         fflush(stdout);
     }
 }
+
 int main(int argc, char *argv[]) {
-    if (argc < 2) return 1;
+    if (argc < 3) return 1;
     pipe_in =  atoi(argv[1]);
+    player_num = atoi(argv[2]);
     // config du gestionnaire de signal (SIGUSR1)
     struct sigaction sa;
     sa.sa_handler = handle_refresh;
@@ -38,6 +53,10 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         pause(); // att le signal de refresh
+        if (refresh_flag) {
+            refresh_flag = 0;
+            display_game(); // affichage hors du handler (safe)
+        }
         if (state.status != 0) {
             sleep(1); // attendre pour bien afficher le message de fin
             break;

@@ -15,14 +15,22 @@ ShmSlot* shm_array; // Tableau dans la mémoire partagée
 int N_GAMES;        // Nombre max de parties en parallèle
 
 pthread_mutex_t mutex_shm = PTHREAD_MUTEX_INITIALIZER; // Exclusion mutuelle
+pthread_mutex_t mutex_clients = PTHREAD_MUTEX_INITIALIZER; // Protection du tableau clients (Tas)
 sem_t sem_move;
 sem_t sem_goal;
 int server_running = 1;
 
 pthread_t t_main, t_move, t_goal; // id des threads
+unsigned int rand_seed; // graine pour rand_r (thread-safe)
 
 // handler vide pour réveiller le thread principal du pause()
 void thread_wakeup(int sig) { (void)sig; }
+
+// handler pour récolter les processus display terminés (évite les zombies)
+void sigchld_handler(int sig) {
+    (void)sig;
+    while (waitpid(-1, NULL, WNOHANG) > 0); // récolte tous les fils terminés
+}
 
 // Apparition d'une tuile aléatoire (2 ou 4) sur une case vide
 // S41 : prend maitenant un pointeur vers la grille du joueur actuel
@@ -41,11 +49,11 @@ void add_tile(GameState *current_game) {
     }
 
     if(count > 0) {
-        int r = rand() % count;
+        int r = rand_r(&rand_seed) % count;
         int line = empty[r][0];
         int column = empty[r][1];
 
-        if ((rand () % 10) == 0) {
+        if ((rand_r(&rand_seed) % 10) == 0) {
             current_game->grid[line][column] = 4;
         }
         else {
@@ -125,8 +133,11 @@ void move_logic(GameState *current_game, Command cmd) {
 
 // Fonction pour gérer un nouveau joueur
 ClientSession* get_or_create_client(pid_t pid) {
+    pthread_mutex_lock(&mutex_clients); // Protection contre la race condition avec thread_goal
+
     for(int i = 0; i < num_clients; i++) {
         if(clients[i].client_pid == pid) {
+            pthread_mutex_unlock(&mutex_clients);
             return &clients[i];
         }
     }
@@ -148,7 +159,8 @@ ClientSession* get_or_create_client(pid_t pid) {
     if(dpid == 0) {
         close(p[1]);
         char fd_str[10]; sprintf(fd_str, "%d", p[0]);
-        execl("./display", "display", fd_str, NULL); // execute display
+        char num_str[12]; sprintf(num_str, "%d", num_clients + 1);
+        execl("./display", "display", fd_str, num_str, NULL); // execute display
         exit(0);
     }
     close(p[0]); // ferme le côté lecture
@@ -161,6 +173,9 @@ ClientSession* get_or_create_client(pid_t pid) {
     kill(dpid, SIGUSR1);
 
     num_clients++;
+    printf("[Serveur] Joueur %d connecté (PID: %d)\n", num_clients, pid);
+    fflush(stdout); // force l'affichage immédiat
+    pthread_mutex_unlock(&mutex_clients);
     return new_client;
 }
 
@@ -212,6 +227,7 @@ void* thread_goal(void* arg) {
                 if (!can_move && current_game->status != 1) current_game->status = 2;
 
                 // Synchro avec le processus d'affichage du joueur concerné
+                pthread_mutex_lock(&mutex_clients); // Protection du Tas (clients)
                 for(int k = 0; k < num_clients; k++) {
                     if(clients[k].client_pid == shm_array[i].client_pid) {
                         *(clients[k].state) = *current_game; // Maj du Tas
@@ -220,6 +236,7 @@ void* thread_goal(void* arg) {
                         break;
                     }
                 }
+                pthread_mutex_unlock(&mutex_clients);
                 shm_array[i].state_flag = 0; // Libère la place dans la SHM
             }
         }
@@ -239,7 +256,7 @@ int main(int argc, char *argv[]) {
     // création du pipe nommé
     unlink(NAMED_PIPE);
     mkfifo(NAMED_PIPE, 0666);
-    srand(time(NULL));
+    rand_seed = (unsigned int)time(NULL); // graine thread-safe pour rand_r
 
     // création de la mémoire partagée pour N parties
     shm_id = shmget(IPC_PRIVATE, N_GAMES * sizeof(ShmSlot), IPC_CREAT | 0666);
@@ -257,6 +274,13 @@ int main(int argc, char *argv[]) {
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
     sigaction(SIGUSR1, &sa, NULL);
+
+    // handler pour éviter les processus zombies (récolte les fils display)
+    struct sigaction sa_chld;
+    sa_chld.sa_handler = sigchld_handler;
+    sigemptyset(&sa_chld.sa_mask);
+    sa_chld.sa_flags = SA_RESTART; // SA_RESTART pour ne pas interrompre read()
+    sigaction(SIGCHLD, &sa_chld, NULL);
 
     // lancement des threads
     pthread_create(&t_move, NULL, thread_move_score, NULL);
@@ -291,20 +315,34 @@ int main(int argc, char *argv[]) {
         int slot_trouve = 0;
         while (!slot_trouve && server_running) {
             pthread_mutex_lock(&mutex_shm); // Protection
-            for(int i = 0; i < N_GAMES; i++) {
-                if (shm_array[i].state_flag == 0) { // On cherche une place vide
-                    shm_array[i].state = *(client->state); // Copie du Tas -> SHM
-                    shm_array[i].client_pid = client->client_pid;
-                    shm_array[i].cmd = input.cmd;
-                    shm_array[i].state_flag = 1;
 
-                    sem_post(&sem_move); // Réveille le thread de calcul
-                    slot_trouve = 1;
+            // Vérifie que ce joueur n'a pas déjà un coup en attente dans la SHM
+            // (sinon on copierait l'ancien état du Tas avant que le coup précédent soit appliqué)
+            int player_pending = 0;
+            for(int i = 0; i < N_GAMES; i++) {
+                if (shm_array[i].state_flag != 0 && shm_array[i].client_pid == client->client_pid) {
+                    player_pending = 1;
                     break;
                 }
             }
+
+            if (!player_pending) {
+                for(int i = 0; i < N_GAMES; i++) {
+                    if (shm_array[i].state_flag == 0) { // On cherche une place vide
+                        shm_array[i].state = *(client->state); // Copie du Tas -> SHM
+                        shm_array[i].client_pid = client->client_pid;
+                        shm_array[i].cmd = input.cmd;
+                        shm_array[i].state_flag = 1;
+
+                        sem_post(&sem_move); // Réveille le thread de calcul
+                        slot_trouve = 1;
+                        break;
+                    }
+                }
+            }
+
             pthread_mutex_unlock(&mutex_shm);
-            if (!slot_trouve) usleep(10000); // si SHM pleine on attend un peu
+            if (!slot_trouve) usleep(10000); // si SHM pleine ou coup en attente, on attend un peu
         }
     }
 
@@ -312,9 +350,20 @@ int main(int argc, char *argv[]) {
     close(fd_in);
     unlink(NAMED_PIPE);
 
+    // Débloquer les threads en attente sur les sémaphores
+    sem_post(&sem_move);
+    sem_post(&sem_goal);
+    pthread_join(t_move, NULL);
+    pthread_join(t_goal, NULL);
+
+    // Destruction des sémaphores
+    sem_destroy(&sem_move);
+    sem_destroy(&sem_goal);
+
     // ferme l'affichage de tous les joueurs et libère le tas
     for(int i = 0; i < num_clients; i++) {
         kill(clients[i].display_pid, SIGTERM);
+        close(clients[i].pipe_display_fd); // ferme le pipe anonyme (BUG 5)
         free(clients[i].state);
     }
     free(clients);
