@@ -39,6 +39,7 @@ ClientSession* get_or_create_client(PlayerInput* input) {
     memset(new_client->state, 0, sizeof(GameState));
     strncpy(new_client->terminal, input->terminal, sizeof(new_client->terminal) - 1);
     add_tile(new_client->state); // première tuile
+    add_tile(new_client->state); // deuxième tuile
 
     // création du pipe Anonyme
     int p[2]; 
@@ -53,7 +54,7 @@ ClientSession* get_or_create_client(PlayerInput* input) {
         sprintf(fd_str, "%d", p[0]);
         char num_str[12]; 
         sprintf(num_str, "%d", num_clients + 1);
-        // On passe le chemin du terminal en 3ème argument à display
+        // chemin du terminal en 3ème argument à display
         execl("./display", "display", fd_str, num_str, new_client->terminal, NULL);
         exit(0);
     }

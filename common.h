@@ -29,7 +29,7 @@ typedef struct {
     int status; // 0, 1, 2 or 3
 } GameState;
 
-typedef enum { UP, DOWN, LEFT, RIGHT, QUIT } Command; // enum au lieux d'utiliser 1,2,3,4
+typedef enum { UP, DOWN, LEFT, RIGHT, QUIT, JOIN } Command; // enum au lieux d'utiliser 1,2,3,4,5
 
 typedef struct {
     pid_t client_pid;
@@ -42,6 +42,6 @@ typedef struct {
     pid_t client_pid; // à qui appartient la grille
     Command cmd; // la command à appliquer
     int state_flag; // 0 : Libre, 1 : a bouger, 2 : a verifier
-} ShmSlot;
+} PendingMove;
 
 #endif

@@ -2,7 +2,7 @@
 #include "client_manager.h"
 
 int shm_id;
-ShmSlot* shm_array; // Tableau dans la mémoire partagée
+PendingMove* shm_array; // Tableau dans la mémoire partagée
 int N_GAMES;        // Nombre max de parties en parallèle
 
 pthread_mutex_t mutex_shm = PTHREAD_MUTEX_INITIALIZER; // Exclusion mutuelle
@@ -199,9 +199,9 @@ int main(int argc, char *argv[]) {
     rand_seed = (unsigned int)time(NULL); // graine thread-safe pour rand_r
 
     // création de la mémoire partagée pour N parties
-    shm_id = shmget(IPC_PRIVATE, N_GAMES * sizeof(ShmSlot), IPC_CREAT | 0666);
-    shm_array = (ShmSlot*) shmat(shm_id, NULL, 0);
-    memset(shm_array, 0, N_GAMES * sizeof(ShmSlot));
+    shm_id = shmget(IPC_PRIVATE, N_GAMES * sizeof(PendingMove), IPC_CREAT | 0666);
+    shm_array = (PendingMove*) shmat(shm_id, NULL, 0);
+    memset(shm_array, 0, N_GAMES * sizeof(PendingMove));
 
     // initialisation des sémaphores
     sem_init(&sem_move, 0, 0);

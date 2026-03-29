@@ -21,8 +21,15 @@ int main() {
     char input;
     pid_t pid = getpid(); // S41 on récupère le pid
 
-    printf("Commandes : z (Haut), s (Bas), q (Gauche), d (Droit), a (Abandonner)\n");
-    printf("--------------------------------------------------------------------\n");
+    printf("Appuyez sur Entrée pour rejoindre la partie\n");
+    getchar(); // attend que le joueur appuie sur Entrée
+
+    // envoie un paquet JOIN pour demander l'affichage de la grille initiale
+    PlayerInput join_paquet = {pid, JOIN, ""};
+    char* terminal = ttyname(STDIN_FILENO);
+    if (terminal) 
+        strncpy(join_paquet.terminal, terminal, sizeof(join_paquet.terminal) - 1);
+    write(fd, &join_paquet, sizeof(PlayerInput));
 
     while (1) {
 
@@ -44,7 +51,8 @@ int main() {
             // crée le paquet qui contient le pid, la command, et le terminal du joueur
             PlayerInput paquet = {pid, cmd, ""};
             char* terminal = ttyname(STDIN_FILENO);
-            if (terminal) strncpy(paquet.terminal, terminal, sizeof(paquet.terminal) - 1);
+            if (terminal) 
+                strncpy(paquet.terminal, terminal, sizeof(paquet.terminal) - 1);
             if (write(fd, &paquet, sizeof(PlayerInput)) == -1) {
                 printf("Le serveur de jeu est fermé.\n");
                 break;
