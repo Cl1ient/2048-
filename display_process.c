@@ -52,11 +52,14 @@ int main(int argc, char *argv[]) {
     sigaction(SIGUSR1, &sa, NULL); //
 
     while (1) {
-        pause(); // att le signal de refresh
-        if (refresh_flag) {
-            refresh_flag = 0;
-            display_game(); // affichage hors du handler (safe)
+        // att le signal de refresh (on vérifie le flag AVANT pause()
+        // pour ne pas rater un signal arrivé pendant display_game())
+        while (!refresh_flag) {
+            pause();
         }
+        refresh_flag = 0;
+        display_game(); // affichage hors du handler (safe)
+
         if (state.status != 0) {
             sleep(1); // attendre pour bien afficher le message de fin
             break;
