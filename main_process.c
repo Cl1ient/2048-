@@ -43,8 +43,8 @@ int main() {
         if (valid) {
             // crée le paquet qui contient le pid, la command, et le terminal du joueur
             PlayerInput paquet = {pid, cmd, ""};
-            char* tty = ttyname(STDIN_FILENO);
-            if (tty) strncpy(paquet.tty, tty, sizeof(paquet.tty) - 1);
+            char* terminal = ttyname(STDIN_FILENO);
+            if (terminal) strncpy(paquet.terminal, terminal, sizeof(paquet.terminal) - 1);
             if (write(fd, &paquet, sizeof(PlayerInput)) == -1) {
                 printf("Le serveur de jeu est fermé.\n");
                 break;

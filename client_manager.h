@@ -8,7 +8,7 @@ typedef struct {
     GameState* state; // etat du jeu alloué dans le tas
     int pipe_display_fd;   // pipe anonyme dédié à ce joueur
     pid_t display_pid;     // PID du processus d'affichage dédié
-    char tty[64];          // terminal du joueur (pour y rediriger stdout du display)
+    char terminal[64];          // chemin du terminal du joueur (pour y rediriger l'affichage)
 } ClientSession;
 
 extern ClientSession* clients;

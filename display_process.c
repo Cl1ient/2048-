@@ -35,6 +35,12 @@ int main(int argc, char *argv[]) {
     pipe_in =  atoi(argv[1]);
     player_num = atoi(argv[2]);
 
+    // Redirige stdout vers le terminal du joueur (celui qui a lancé ./main)
+    // freopen = "réouvre stdout en tant que fichier d'écriture vers le TTY du joueur"
+    if (argc >= 4 && argv[3][0] != '\0') {
+        freopen(argv[3], "w", stdout);
+    }
+
     // boucle simple : read() bloque jusqu'à ce qu'un état arrive
     while (read(pipe_in, &state, sizeof(GameState)) > 0) {
         display_game();

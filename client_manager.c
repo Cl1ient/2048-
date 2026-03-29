@@ -4,8 +4,9 @@ ClientSession* clients = NULL; // Tableau dynamique des joueurs
 int num_clients = 0;
 pthread_mutex_t mutex_clients = PTHREAD_MUTEX_INITIALIZER; // Protection du tableau clients (Tas)
 
-// Déclaration externe pour la fonction génératrice de tuile (qui est dans game_process.c)
+// Déclarations externes depuis game_process.c
 extern void add_tile(GameState *current_game);
+extern int N_GAMES;
 
 ClientSession* get_or_create_client(PlayerInput* input) {
     pid_t pid = input->client_pid;
@@ -18,13 +19,25 @@ ClientSession* get_or_create_client(PlayerInput* input) {
         }
     }
 
+    // Refus de connexion si le serveur est plein
+    if (num_clients >= N_GAMES) {
+        // Afficher l'erreur dans le terminal du joueur
+        FILE* terminal = fopen(input->terminal, "w");
+        if (terminal) {
+            fprintf(terminal, "[Serveur] Complet ! Max %d partie(s). Connexion refusée.\n", N_GAMES);
+            fclose(terminal);
+        }
+        pthread_mutex_unlock(&mutex_clients);
+        return NULL; // signale le refus au serveur
+    }
+
     // allocation dans le tas
     clients = realloc(clients, (num_clients + 1) * sizeof(ClientSession));
     ClientSession* new_client = &clients[num_clients];
     new_client->client_pid = pid;
     new_client->state = malloc(sizeof(GameState));
     memset(new_client->state, 0, sizeof(GameState));
-    strncpy(new_client->tty, input->tty, sizeof(new_client->tty) - 1);
+    strncpy(new_client->terminal, input->terminal, sizeof(new_client->terminal) - 1);
     add_tile(new_client->state); // première tuile
 
     // création du pipe Anonyme
@@ -36,19 +49,12 @@ ClientSession* get_or_create_client(PlayerInput* input) {
     pid_t dpid = fork();
     if(dpid == 0) {
         close(p[1]);
-
-        // Redirige stdout vers le terminal du joueur (dup2)
-        if (new_client->tty[0] != '\0') {
-            int tty_fd = open(new_client->tty, O_WRONLY);
-            if (tty_fd != -1) {
-                dup2(tty_fd, STDOUT_FILENO); // stdout --> terminal du joueur
-                close(tty_fd);
-            }
-        }
-
-        char fd_str[10]; sprintf(fd_str, "%d", p[0]);
-        char num_str[12]; sprintf(num_str, "%d", num_clients + 1);
-        execl("./display", "display", fd_str, num_str, NULL); // execute display
+        char fd_str[10]; 
+        sprintf(fd_str, "%d", p[0]);
+        char num_str[12]; 
+        sprintf(num_str, "%d", num_clients + 1);
+        // On passe le chemin du terminal en 3ème argument à display
+        execl("./display", "display", fd_str, num_str, new_client->terminal, NULL);
         exit(0);
     }
     close(p[0]); // ferme le côté lecture
@@ -57,7 +63,7 @@ ClientSession* get_or_create_client(PlayerInput* input) {
     usleep(100000); // attendre pour laisser le fils s'init
 
     num_clients++;
-    printf("[Serveur] Joueur %d connecté (PID: %d)  TTY: %s\n", num_clients, pid, new_client->tty);
+    printf("[Serveur] Joueur %d connecté (PID: %d)  Terminal: %s\n", num_clients, pid, new_client->terminal);
     fflush(stdout); // force l'affichage immédiat
     pthread_mutex_unlock(&mutex_clients);
     return new_client;

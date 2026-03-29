@@ -34,7 +34,7 @@ typedef enum { UP, DOWN, LEFT, RIGHT, QUIT } Command; // enum au lieux d'utilise
 typedef struct {
     pid_t client_pid;
     Command cmd;
-    char tty[64]; // terminal du joueur (ex: /dev/pts/3)
+    char terminal[64]; // chemin du terminal du joueur (ex: /dev/pts/3)
 } PlayerInput;
 
 typedef struct {

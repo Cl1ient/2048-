@@ -246,8 +246,9 @@ int main(int argc, char *argv[]) {
             continue;
         }
 
-        // Récupère ou crée le joueur
+        // Récupère ou crée le joueur (NULL si serveur plein)
         ClientSession* client = get_or_create_client(&input);
+        if (client == NULL) continue; // serveur plein : on ignore ce paquet
 
         // Place la commande dans la mémoire partagée pour les threads
         int slot_trouve = 0;
