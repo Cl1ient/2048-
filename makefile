@@ -14,8 +14,8 @@ all: $(EXEC_MAIN) $(EXEC_ENGINE) $(EXEC_DISPLAY)
 $(EXEC_MAIN): main_process.c common.h
 	$(CC) $(CFLAGS) -o $(EXEC_MAIN) main_process.c
 
-$(EXEC_ENGINE): game_process.c common.h
-	$(CC) $(CFLAGS) -o $(EXEC_ENGINE) game_process.c $(LDFLAGS) 
+$(EXEC_ENGINE): game_process.c common.h client_manager.h client_manager.c
+	$(CC) $(CFLAGS) -o $(EXEC_ENGINE) game_process.c client_manager.c $(LDFLAGS) 
 
 $(EXEC_DISPLAY): display_process.c common.h
 	$(CC) $(CFLAGS) -o $(EXEC_DISPLAY) display_process.c

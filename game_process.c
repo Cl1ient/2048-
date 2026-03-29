@@ -1,21 +1,11 @@
 #include "common.h"
-
-typedef struct {
-    pid_t client_pid;
-    GameState* state; // etat du jeu alloué dans le tas
-    int pipe_display_fd;   // pipe anonyme dédié à ce joueur
-    pid_t display_pid;     // PID du processus d'affichage dédié
-} ClientSession;
-
-ClientSession* clients = NULL; // Tableau dynamique des joueurs
-int num_clients = 0;
+#include "client_manager.h"
 
 int shm_id;
 ShmSlot* shm_array; // Tableau dans la mémoire partagée
 int N_GAMES;        // Nombre max de parties en parallèle
 
 pthread_mutex_t mutex_shm = PTHREAD_MUTEX_INITIALIZER; // Exclusion mutuelle
-pthread_mutex_t mutex_clients = PTHREAD_MUTEX_INITIALIZER; // Protection du tableau clients (Tas)
 sem_t sem_move;
 sem_t sem_goal;
 int server_running = 1;
@@ -131,85 +121,6 @@ void move_logic(GameState *current_game, Command cmd) {
     if (moved) add_tile(current_game);
 }
 
-// Fonction pour gérer un nouveau joueur
-ClientSession* get_or_create_client(pid_t pid) {
-    pthread_mutex_lock(&mutex_clients); // Protection contre la race condition avec thread_goal
-
-    for(int i = 0; i < num_clients; i++) {
-        if(clients[i].client_pid == pid) {
-            pthread_mutex_unlock(&mutex_clients);
-            return &clients[i];
-        }
-    }
-
-    // allocation dans le tas
-    clients = realloc(clients, (num_clients + 1) * sizeof(ClientSession));
-    ClientSession* new_client = &clients[num_clients];
-    new_client->client_pid = pid;
-    new_client->state = malloc(sizeof(GameState));
-    memset(new_client->state, 0, sizeof(GameState));
-    add_tile(new_client->state); // première tuile
-
-    // création du pipe Anonyme
-    int p[2]; pipe(p);
-    new_client->pipe_display_fd = p[1];
-
-    // fork pour créer le processus d'affichage du joueur
-    pid_t dpid = fork();
-    if(dpid == 0) {
-        close(p[1]);
-        char fd_str[10]; sprintf(fd_str, "%d", p[0]);
-        char num_str[12]; sprintf(num_str, "%d", num_clients + 1);
-        execl("./display", "display", fd_str, num_str, NULL); // execute display
-        exit(0);
-    }
-    close(p[0]); // ferme le côté lecture
-    new_client->display_pid = dpid;
-
-    usleep(100000); // attendre pour laisser le fils s'init
-
-    // affichage initiale
-    write(new_client->pipe_display_fd, new_client->state, sizeof(GameState));
-    kill(dpid, SIGUSR1);
-
-    num_clients++;
-    printf("[Serveur] Joueur %d connecté (PID: %d)\n", num_clients, pid);
-    fflush(stdout); // force l'affichage immédiat
-    pthread_mutex_unlock(&mutex_clients);
-    return new_client;
-}
-
-
-// Supprime un joueur du tableau clients et nettoie ses ressources
-void remove_client(pid_t pid) {
-    pthread_mutex_lock(&mutex_clients);
-    for(int i = 0; i < num_clients; i++) {
-        if(clients[i].client_pid == pid) {
-            printf("[Serveur] Joueur %d déconnecté (PID: %d)\n", i + 1, pid);
-            fflush(stdout);
-
-            // Envoie l'état "quit" au display avant de le fermer
-            clients[i].state->status = 3;
-            write(clients[i].pipe_display_fd, clients[i].state, sizeof(GameState));
-            kill(clients[i].display_pid, SIGUSR1);
-            usleep(50000); // laisse le display afficher le message
-
-            kill(clients[i].display_pid, SIGTERM);
-            close(clients[i].pipe_display_fd);
-            free(clients[i].state);
-
-            // Décale les éléments suivants pour combler le trou
-            for(int j = i; j < num_clients - 1; j++) {
-                clients[j] = clients[j + 1];
-            }
-            num_clients--;
-            clients = realloc(clients, num_clients * sizeof(ClientSession));
-            break;
-        }
-    }
-    pthread_mutex_unlock(&mutex_clients);
-}
-
 void* thread_move_score(void* arg) {
     (void)arg;
     while(server_running) {
@@ -262,7 +173,6 @@ void* thread_goal(void* arg) {
                     if(clients[k].client_pid == shm_array[i].client_pid) {
                         *(clients[k].state) = *current_game; // Maj du Tas
                         write(clients[k].pipe_display_fd, current_game, sizeof(GameState));
-                        kill(clients[k].display_pid, SIGUSR1);
                         break;
                     }
                 }
@@ -301,8 +211,6 @@ int main(int argc, char *argv[]) {
     t_main = pthread_self();
     struct sigaction sa;
     sa.sa_handler = thread_wakeup;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
     sigaction(SIGUSR1, &sa, NULL);
 
     // handler pour éviter les processus zombies (récolte les fils display)
@@ -339,7 +247,7 @@ int main(int argc, char *argv[]) {
         }
 
         // Récupère ou crée le joueur
-        ClientSession* client = get_or_create_client(input.client_pid);
+        ClientSession* client = get_or_create_client(&input);
 
         // Place la commande dans la mémoire partagée pour les threads
         int slot_trouve = 0;
