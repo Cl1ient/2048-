@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
         display_game(); // affichage hors du handler (safe)
 
         if (state.status != 0) {
-            sleep(1); // attendre pour bien afficher le messge de fin
+            sleep(1); // attendre pour bien afficher le message de fin
             break;
         }
     }

@@ -63,6 +63,6 @@ int main() {
         }
     }
 
-    close(fd); // on ferme le descripteur de fichié
+    close(fd); // on ferme le descripteur de fichier
     return 0;
 }
