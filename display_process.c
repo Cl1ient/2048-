@@ -34,8 +34,9 @@ void display_game() {
             printf("\n\n");
         }
         if (state.status == 1) printf("Tu as atteint 2048 \n");
-        if (state.status == 2) printf("Plus de mouvements possibles \n");
-        if (state.status == 3) printf("Partie abandoné\n");
+        else if (state.status == 2) printf("Plus de mouvements possibles \n");
+        else if (state.status == 3) printf("Partie abandoné\n");
+        else printf("Commandes : z (Haut), s (Bas), q (Gauche), d (Droit), a (Abandonner)\n");
         fflush(stdout);
     }
 }
@@ -61,7 +62,7 @@ int main(int argc, char *argv[]) {
         display_game(); // affichage hors du handler (safe)
 
         if (state.status != 0) {
-            sleep(1); // attendre pour bien afficher le message de fin
+            sleep(1); // attendre pour bien afficher le messge de fin
             break;
         }
     }

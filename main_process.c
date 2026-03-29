@@ -19,8 +19,13 @@ int main() {
     }
 
     char input;
-    int compteur_coups = 0;
     pid_t pid = getpid(); // S41 on récupère le pid
+
+    // Récupère le chemin du terminal du joueur pour l'affichage
+    char tty_path[64];
+    char* tty = ttyname(STDOUT_FILENO);
+    strncpy(tty_path, tty ? tty : "/dev/tty", sizeof(tty_path) - 1);
+    tty_path[sizeof(tty_path) - 1] = '\0';
 
     printf("Commandes : z (Haut), s (Bas), q (Gauche), d (Droit), a (Abandonner)\n");
     printf("--------------------------------------------------------------------\n");
@@ -42,25 +47,22 @@ int main() {
         else valid = 0;
 
         if (valid) {
-            // crée le paquet qui contient le pid et la command
-            PlayerInput paquet = {pid, cmd};
+            // crée le paquet qui contient le pid, la commande et le terminal
+            PlayerInput paquet;
+            paquet.client_pid = pid;
+            paquet.cmd = cmd;
+            strncpy(paquet.tty, tty_path, sizeof(paquet.tty));
+
             if (write(fd, &paquet, sizeof(PlayerInput)) == -1) {
                 printf("Le serveur de jeu est fermé.\n");
                 break;
             }
             if (cmd == QUIT) break;
-            compteur_coups++;
-            if (compteur_coups >= 3) {
-                system("clear");
-                printf("Commandes : z (Haut), s (Bas), q (Gauche), d (Droit), a (Abandonner)\n");
-                printf("--------------------------------------------------------------------\n");
-                compteur_coups = 0;
-            }
         } else {
             printf("Touche '%c' ignorée. Utilise z, q, s, d ou a.\n", input);
         }
     }
 
-    close(fd); // on ferme le descripteur de fichier
+    close(fd); // on ferme le descripteur de fichié
     return 0;
 }

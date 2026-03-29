@@ -5,6 +5,7 @@ typedef struct {
     GameState* state; // etat du jeu alloué dans le tas
     int pipe_display_fd;   // pipe anonyme dédié à ce joueur
     pid_t display_pid;     // PID du processus d'affichage dédié
+    char tty[64];          // terminal du joueur (pour rediriger l'affichage)
 } ClientSession;
 
 ClientSession* clients = NULL; // Tableau dynamique des joueurs
@@ -132,7 +133,7 @@ void move_logic(GameState *current_game, Command cmd) {
 }
 
 // Fonction pour gérer un nouveau joueur
-ClientSession* get_or_create_client(pid_t pid) {
+ClientSession* get_or_create_client(pid_t pid, const char* tty) {
     pthread_mutex_lock(&mutex_clients); // Protection contre la race condition avec thread_goal
 
     for(int i = 0; i < num_clients; i++) {
@@ -148,6 +149,8 @@ ClientSession* get_or_create_client(pid_t pid) {
     new_client->client_pid = pid;
     new_client->state = malloc(sizeof(GameState));
     memset(new_client->state, 0, sizeof(GameState));
+    strncpy(new_client->tty, tty, sizeof(new_client->tty) - 1);
+    new_client->tty[sizeof(new_client->tty) - 1] = '\0';
     add_tile(new_client->state); // première tuile
 
     // création du pipe Anonyme
@@ -158,6 +161,12 @@ ClientSession* get_or_create_client(pid_t pid) {
     pid_t dpid = fork();
     if(dpid == 0) {
         close(p[1]);
+        // Redirige stdout vers le terminal du joueur
+        int tty_fd = open(tty, O_WRONLY);
+        if (tty_fd >= 0) {
+            dup2(tty_fd, STDOUT_FILENO);
+            close(tty_fd);
+        }
         char fd_str[10]; sprintf(fd_str, "%d", p[0]);
         char num_str[12]; sprintf(num_str, "%d", num_clients + 1);
         execl("./display", "display", fd_str, num_str, NULL); // execute display
@@ -339,7 +348,7 @@ int main(int argc, char *argv[]) {
         }
 
         // Récupère ou crée le joueur
-        ClientSession* client = get_or_create_client(input.client_pid);
+        ClientSession* client = get_or_create_client(input.client_pid, input.tty);
 
         // Place la commande dans la mémoire partagée pour les threads
         int slot_trouve = 0;
