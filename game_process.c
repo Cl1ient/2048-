@@ -23,7 +23,7 @@ void sigchld_handler(int sig) {
 }
 
 // Apparition d'une tuile aléatoire (2 ou 4) sur une case vide
-// S41 : prend maitenant un pointeur vers la grille du joueur actuel
+// prend maitenant un pointeur vers la grille du joueur actuel
 void add_tile(GameState *current_game) {
     int empty[16][2];
     int count = 0;

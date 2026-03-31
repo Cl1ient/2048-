@@ -6,9 +6,9 @@
 typedef struct {
     pid_t client_pid;
     GameState* state; // etat du jeu alloué dans le tas
-    int pipe_display_fd;   // pipe anonyme dédié à ce joueur
-    pid_t display_pid;     // PID du processus d'affichage dédié
-    char terminal[64];          // chemin du terminal du joueur (pour y rediriger l'affichage)
+    int pipe_display_fd; // pipe anonyme dédié à ce joueur
+    pid_t display_pid; // PID du processus d'affichage dédié
+    char terminal[64]; // chemin du terminal du joueur (pour y rediriger l'affichage)
 } ClientSession;
 
 extern ClientSession* clients;

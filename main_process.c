@@ -19,7 +19,7 @@ int main() {
     }
 
     char input;
-    pid_t pid = getpid(); // S41 on récupère le pid
+    pid_t pid = getpid(); // on récupère le pid
 
     printf("Appuyez sur Entrée pour rejoindre la partie\n");
     getchar(); // attend que le joueur appuie sur Entrée
